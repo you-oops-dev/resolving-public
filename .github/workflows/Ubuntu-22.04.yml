@@ -32,7 +32,6 @@ jobs:
         TOKEN: ${{ secrets.PERSONAL_TOKEN }}
       run: |
         rm -fv unblock_suite_ip.txt
-        echo "Getting list domain"
         wget --header "Authorization: token ${TOKEN}" https://raw.githubusercontent.com/naruto522ru/resolving-private/main/unblock_suite_ip.txt
         dos2unix unblock_suite_ip.txt
 
