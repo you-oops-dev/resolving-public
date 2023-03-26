@@ -1,0 +1,61 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Getting list in private repository
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+on:
+  workflow_dispatch:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '50 01 * * *'
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # The "build" workflow
+  Getting:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-22.04
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+       sudo apt update
+       sudo apt upgrade -y
+       sudo apt install -y git wget curl bash coreutils ccache dos2unix --no-install-suggests
+
+    - shell: bash
+      env:
+        TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+      run: |
+        rm -fv unblock_suite_ip.txt
+        echo "Getting list domain"
+        wget --header "Authorization: token ${TOKEN}" https://raw.githubusercontent.com/naruto522ru/resolving-private/main/unblock_suite_ip.txt
+        dos2unix unblock_suite_ip.txt
+
+    - name: Commit file
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+          set -euo pipefail
+
+          git remote add github "https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git pull github ${GITHUB_REF} --ff-only
+
+          # Get name & email from 1st commit
+          git config --local user.email "$(git log --format='%ae' --reverse | head -1)"
+          git config --local user.name "$(git log --format='%an' --reverse | head -1)"
+
+          # try commit
+          git add unblock_suite_ip.txt
+          if [ -z "$(git status --porcelain)" ]; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m "Auto-update get list"
+
+          # push changes
+          git push github HEAD:${GITHUB_REF}
