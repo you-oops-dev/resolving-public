@@ -31,8 +31,8 @@ jobs:
       env:
         TOKEN: ${{ secrets.PERSONAL_TOKEN }}
       run: |
-        rm -fv unblock_suite_ip.txt
-        wget --header "Authorization: token ${TOKEN}" https://raw.githubusercontent.com/naruto522ru/resolving-private/main/unblock_suite_ip.txt
+        wget --header "Authorization: token ${TOKEN}" https://raw.githubusercontent.com/naruto522ru/resolving-private/main/unblock_suite_ip.txt -P /tmp/
+        cp -fv /tmp/unblock_suite_ip.txt ./
         dos2unix unblock_suite_ip.txt
 
     - name: Commit file
