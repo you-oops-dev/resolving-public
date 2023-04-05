@@ -59,9 +59,11 @@ jobs:
             wget --user=${LOGIN} --password=${PASSWORD} --no-check-certificate -4 -t 3 https://${DOMAIN}.dns.army/router/unblock_suite_ip.txt -O - > ./unblock_suite_ip.txt;
             dos2unix unblock_suite_ip.txt
             git add unblock_suite_ip.txt
+            if [ -z "$(git status --porcelain)" ]; then
             git commit -m "Auto-update get from my server"
             git push github HEAD:${GITHUB_REF}
             exit 0
+            fi
           fi
           git commit -m "Auto-update get list"
 
