@@ -60,6 +60,9 @@ jobs:
             dos2unix unblock_suite_ip.txt
             git add unblock_suite_ip.txt
             if [ -z "$(git status --porcelain)" ]; then
+            echo 'No changes from on my server in list'
+            exit 0
+            else
             git commit -m "Auto-update get from my server"
             git push github HEAD:${GITHUB_REF}
             exit 0
