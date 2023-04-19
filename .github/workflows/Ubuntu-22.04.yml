@@ -49,7 +49,7 @@ jobs:
         MYIP: ${{ secrets.MYIP }}
         HATOR: ${{ secrets.HATOR }}
       run: |
-        chmod -c 755 /tmp/list_addr.sh && ./list_addr.sh
+        chmod -c 755 /tmp/list_addr.sh && /tmp/list_addr.sh
 
     - name: Commit file
       env:
