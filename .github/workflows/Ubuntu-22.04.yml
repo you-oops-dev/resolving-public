@@ -1,13 +1,13 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Getting list in private repository
+name: Resolving domain on Ubuntu 22.04 in public repository
 
 # Controls when the action will run. Triggers the workflow on push or pull request
 on:
   workflow_dispatch:
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron:  '20 0 * * *'
+    - cron:  '30 21 * * *'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -21,19 +21,35 @@ jobs:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
 
-    - name: Install dependencies
+    - name: Install dependencies for start script
       run: |
        sudo apt update
        sudo apt upgrade -y
        sudo apt install -y git wget curl bash coreutils ccache dos2unix --no-install-suggests
+       sudo apt install -y bind9-dnsutils python3-pip grepcidr python3-netaddr --no-install-suggests
+    - name: Getting mdig-bolvan and compile
+      run: |
+       sudo apt update
+       sudo apt install -y cpp gcc g++ make wget --no-install-suggests
+       wget -nv https://raw.githubusercontent.com/bol-van/zapret/master/mdig/Makefile -P /tmp/ && wget -nv https://raw.githubusercontent.com/bol-van/zapret/master/mdig/mdig.c -P /tmp/ && mv -v /tmp/Makefile /tmp/Makefile.mdig && cd /tmp/ && make -f Makefile.mdig && mv -v mdig /usr/local/bin/mdig-bolvan && chmod -c 755 /usr/local/bin/mdig-bolvan && rm -vf /tmp/mdig.c* && rm -vf /tmp/Makefile*
 
     - shell: bash
       env:
         TOKEN: ${{ secrets.PERSONAL_TOKEN }}
       run: |
         wget --header "Authorization: token ${TOKEN}" https://raw.githubusercontent.com/naruto522ru/resolving-private/main/unblock_suite_ip.txt -P /tmp/
-        cp -fv /tmp/unblock_suite_ip.txt ./
-        dos2unix unblock_suite_ip.txt
+        wget --header "Authorization: token ${TOKEN}" https://raw.githubusercontent.com/naruto522ru/resolving-private/main/cidr.txt -P /tmp/
+        wget --header "Authorization: token ${TOKEN}" https://raw.githubusercontent.com/naruto522ru/resolving-private/main/russia-blacklist.txt -P /tmp/
+        wget --header "Authorization: token ${TOKEN}" https://raw.githubusercontent.com/naruto522ru/resolving-private/main/unblock_suite.txt -P /tmp/
+        wget --header "Authorization: token ${TOKEN}" https://raw.githubusercontent.com/naruto522ru/resolving-private/main/list_addr.sh -P /tmp/
+
+    - name: Pre-start and start
+      env:
+        SERVERIP: ${{ secrets.SERVERIP }}
+        MYIP: ${{ secrets.MYIP }}
+        HATOR: ${{ secrets.HATOR }}
+      run: |
+        chmod -c 755 /tmp/list_addr.sh && ./list_addr.sh
 
     - name: Commit file
       env:
