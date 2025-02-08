@@ -1,9 +1,9 @@
-## resolving-public ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/naruto522ru/resolving-public/main?style=plastic)
+## resolving-public ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/you-oops-dev/resolving-public/main?style=plastic)
 
 | File      | CIDR  | IP's| Total IP's | Size in memory (ipset)|Line in file | Size file (Mb)
 |:----------:|:------------:|:------------:|:------------:|:------------:|:------------:|:------------:
-|unblock_suite_ip.txt [RAW](https://raw.githubusercontent.com/naruto522ru/resolving-public/main/unblock_suite_ip.txt)|5854|22542|103791216|0.74 Mb|28396|0.456 Mb
-|unblock_suite_ip_ipset.txt [RAW](https://raw.githubusercontent.com/naruto522ru/resolving-public/main/unblock_suite_ip_ipset.txt)|2052|13963|104385035|0.414 Mb|16015|0.254 Mb
+|unblock_suite_ip.txt [RAW](https://raw.githubusercontent.com/you-oops-dev/resolving-public/main/unblock_suite_ip.txt)|5854|22542|103791216|0.74 Mb|28396|0.456 Mb
+|unblock_suite_ip_ipset.txt [RAW](https://raw.githubusercontent.com/you-oops-dev/resolving-public/main/unblock_suite_ip_ipset.txt)|2052|13963|104385035|0.414 Mb|16015|0.254 Mb
 
 Размер потребления (ОЗУ) приблизительна, потому что на разных хостах с одним тем же списком она разная погрешность потребления +- меньше 1-ого процента от указанного. 
 
@@ -119,9 +119,9 @@
 
 ## См. также репозитория:
 
-https://github.com/naruto522ru/ipranges
+https://github.com/you-oops-dev/ipranges
 
-https://github.com/naruto522ru/ipranges-shadowsocks
+https://github.com/you-oops-dev/ipranges-shadowsocks
 
 ***ENG:***
 
@@ -175,6 +175,6 @@ You can also manually run GitHub Action (you need authorization and account). An
 
 ## See also repository:
 
-https://github.com/naruto522ru/ipranges
+https://github.com/you-oops-dev/ipranges
 
-https://github.com/naruto522ru/ipranges-shadowsocks
+https://github.com/you-oops-dev/ipranges-shadowsocks

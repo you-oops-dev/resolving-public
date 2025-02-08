@@ -68,7 +68,7 @@ jobs:
 
     - name: Install CoreDNS
       env:
-        URL_CONFIG_COREDNS: https://gist.githubusercontent.com/naruto522ru/e244f9f6fe96a609b8d9cf2f1f478bdf/raw/51ece1c11022cd9604206bff94698316567a4881/CoreDNS_config.conf
+        URL_CONFIG_COREDNS: https://gist.githubusercontent.com/you-oops-dev/e244f9f6fe96a609b8d9cf2f1f478bdf/raw/51ece1c11022cd9604206bff94698316567a4881/CoreDNS_config.conf
       run: |
        sudo chmod -c 755 /usr/local/bin/coredns && sudo chown -c root:root /usr/local/bin/coredns
        whereis coredns
@@ -115,7 +115,7 @@ jobs:
       env:
         TOKEN: ${{ secrets.PERSONAL_TOKEN }}
         DEBIAN_FRONTEND: noninteractive
-        NAME_ACCOUNT_GITHUB: naruto522ru
+        NAME_ACCOUNT_GITHUB: you-oops-dev
       run: |
        sudo apt update
        sudo apt install -y cpp gcc g++ make --no-install-suggests
@@ -126,7 +126,7 @@ jobs:
     - shell: bash
       env:
         TOKEN: ${{ secrets.PERSONAL_TOKEN }}
-        NAME_ACCOUNT_GITHUB: naruto522ru
+        NAME_ACCOUNT_GITHUB: you-oops-dev
       run: |
         curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/cidr.txt > /tmp/cidr.txt
         curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/russia-blacklist.txt > /tmp/russia-blacklist.txt
@@ -160,7 +160,7 @@ jobs:
         MODE: ${{ secrets.MODE }}
         LANG: en_US.UTF-8
         CHARSET: UTF-8
-        NAME_ACCOUNT_GITHUB: naruto522ru
+        NAME_ACCOUNT_GITHUB: you-oops-dev
       run: |
         chmod -c 755 /tmp/list_addr.sh && /tmp/list_addr.sh && mv -v /tmp/unblock_suite_ip.txt ./ && mv -v /tmp/unblock_suite_ip_ipset.txt ./
 
@@ -168,7 +168,7 @@ jobs:
       env:
         LANG: en_US.UTF-8
         CHARSET: UTF-8
-        NAME_ACCOUNT_GITHUB: naruto522ru
+        NAME_ACCOUNT_GITHUB: you-oops-dev
       run: |
         echo ""
         echo -e "[bypass_all]\n[proxy_list]" | tee ss-gfw-list.acl && \
