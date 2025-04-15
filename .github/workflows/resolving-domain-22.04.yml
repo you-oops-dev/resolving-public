@@ -162,7 +162,7 @@ jobs:
         CHARSET: UTF-8
         NAME_ACCOUNT_GITHUB: you-oops-dev
       run: |
-        chmod -c 755 /tmp/list_addr.sh && /tmp/list_addr.sh && mv -v /tmp/unblock_suite_ip.txt ./ && mv -v /tmp/unblock_suite_ip_ipset.txt ./
+        chmod -c 755 /tmp/list_addr.sh && /tmp/list_addr.sh && mv -vf /tmp/unblock_suite_ip.txt /tmp/unblock_suite_ip_ipset.txt /tmp/unblock_suite_with_ip_hoster_border_ipset.txt ./
 
     - name: Create ACL-lists
       env:
