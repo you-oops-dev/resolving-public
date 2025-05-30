@@ -1,0 +1,294 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Resolving domain in public repository
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+on:
+  workflow_dispatch:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '30 21 * * *'
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # The "build" workflow
+  Getting_address_from_domains:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+    - uses: actions/checkout@v4
+
+#    - name: Change DNS-Server's in runner
+#      run: |
+#       echo -e "nameserver 1.0.0.1\nnameserver 8.8.4.4\nnameserver 8.8.8.8\nnameserver 1.1.1.1" | sudo tee /etc/resolv.conf.DNSoverride &>/dev/null;
+#       sudo ln -svf /etc/resolv.conf.DNSoverride /etc/resolv.conf
+#       echo ""
+#       cat -n /etc/resolv.conf
+#       echo ""
+
+#    - name: Settings DoT DNS with systemd-resolved
+#      run: |
+#       sudo apt update
+#       sudo apt install -y bind9-dnsutils sudo --no-install-suggests
+#       sudo mkdir -pv /etc/systemd/resolved.conf.d/
+#       echo -e "[Resolve]\nDNS=8.8.4.4#dns.google\nFallbackDNS=\nDNSOverTLS=yes\nDNSSEC=yes\nCache=yes\nCacheFromLocalhost=yes\nReadEtcHosts=no" | sudo tee /etc/systemd/resolved.conf.d/google.conf &>/dev/null;
+#       echo -e "[Resolve]\nDNS=1.0.0.1#1dot1dot1dot1.cloudflare-dns.com\nFallbackDNS=\nDNSOverTLS=yes\nDNSSEC=yes\nCache=yes\nCacheFromLocalhost=yes\nReadEtcHosts=no" | sudo tee /etc/systemd/resolved.conf.d/cloudflare.conf &>/dev/null;
+#       cat /etc/systemd/resolved.conf.d/google.conf
+#       echo ""
+#       cat /etc/systemd/resolved.conf.d/cloudflare.conf
+#       echo ""
+#       echo "nameserver 127.0.0.53" | sudo tee /etc/resolv.conf.DNSoverride &>/dev/null;
+#       sudo ln -svf /etc/resolv.conf.DNSoverride /etc/resolv.conf
+#       cat -n /etc/resolv.conf
+#       echo ""
+#       cat -n /etc/hosts
+#       echo ""
+#       sudo systemctl restart systemd-resolved.service 
+#       sleep 3s
+#       nc -z -v 127.0.0.53 53 && echo ""
+
+############################
+    - name: Install depens for CoreDNS
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+       sudo apt update && sudo apt install curl make software-properties-common git -y --no-install-suggests && sudo add-apt-repository ppa:longsleep/golang-backports -y
+       sudo apt install golang upx-ucl -y --no-install-suggests
+
+    - name: Compile CoreDNS
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+       git clone --depth 1 https://github.com/coredns/coredns.git
+       cd coredns && make -j$(nproc) && sudo upx -q ./coredns && sudo cp coredns /usr/local/bin/ && cd ../ && sudo rm -r ./coredns/
+       sudo apt autoremove golang upx-ucl -y
+
+    - name: Install CoreDNS
+      env:
+        URL_CONFIG_COREDNS: https://gist.githubusercontent.com/you-oops-dev/e244f9f6fe96a609b8d9cf2f1f478bdf/raw/51ece1c11022cd9604206bff94698316567a4881/CoreDNS_config.conf
+      run: |
+       sudo chmod -c 755 /usr/local/bin/coredns && sudo chown -c root:root /usr/local/bin/coredns
+       whereis coredns
+       sudo mkdir -p /etc/coredns/ /etc/systemd/system/
+       echo -e "[Unit]\nDescription=CoreDNS DNS server\nDocumentation=https://coredns.io\nAfter=network.target\n[Service]\nPermissionsStartOnly=true\nLimitNOFILE=1048576\nLimitNPROC=512\nCapabilityBoundingSet=CAP_NET_BIND_SERVICE\nAmbientCapabilities=CAP_NET_BIND_SERVICE\nNoNewPrivileges=true\nUser=root\nExecStart=/usr/local/bin/coredns -conf=/etc/coredns/Corefile\nExecReload=/bin/kill -SIGUSR1 $MAINPID\nRestart=on-failure\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/coredns.service
+       curl --max-time 30 --retry-delay 3 --retry 10 -4 -# ${URL_CONFIG_COREDNS} | sudo tee /etc/coredns/Corefile &>/dev/null
+       sudo chown root:root /etc/coredns/Corefile
+       sudo cat -n /etc/coredns/Corefile
+       echo ""
+       sudo systemctl daemon-reload
+
+    - name: Change DNS-Server's using CoreDNS
+      run: |
+       echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf.DNSoverride &>/dev/null;
+       sudo ln -svf /etc/resolv.conf.DNSoverride /etc/resolv.conf
+       echo ""
+       cat -n /etc/resolv.conf
+       echo ""
+       sudo systemctl stop systemd-resolved.service && sudo systemctl disable systemd-resolved.service
+       sudo systemctl start coredns.service && sleep 15s && echo "" && nc -z -v 127.0.0.1 53 && echo ""
+       systemctl -q status coredns.service
+
+############################
+
+    - name: Test DNS-query
+      run: |
+       nslookup -type=A google.com
+       echo ""
+       dig google.com A
+
+    - name: Install dependencies for start script
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+       sudo apt update
+       sudo apt upgrade -y
+       sudo apt install -y bind9-dnsutils zstd git wget curl bash coreutils util-linux moreutils ccache dos2unix sudo language-pack-ru language-pack-en locales --no-install-suggests
+       sudo sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+       sudo sed -i -e 's/# ru_RU.UTF-8 UTF-8/ru_RU.UTF-8 UTF-8/' /etc/locale.gen
+       sudo locale-gen --no-purge en_US.UTF-8 ru_RU.UTF-8
+       sudo apt install -y grepcidr jq idn ipset bc --no-install-suggests
+
+    - name: Getting source mdig-bolvan,ip2net and compile
+      env:
+        TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        DEBIAN_FRONTEND: noninteractive
+        NAME_ACCOUNT_GITHUB: you-oops-dev
+      run: |
+       sudo apt update
+       sudo apt install -y cpp gcc g++ make --no-install-suggests
+       curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/mdig/Makefile > /tmp/Makefile.mdig && curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/mdig/mdig.c > /tmp/mdig.c && cd /tmp/ && make -f Makefile.mdig && mv -v mdig /usr/local/bin/mdig-bolvan && chmod -c 755 /usr/local/bin/mdig-bolvan && rm -vf /tmp/mdig.c* && rm -vf /tmp/Makefile*
+       curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/ip2net/Makefile > /tmp/Makefile && curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/ip2net/ip2net.c > /tmp/ip2net.c && curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/ip2net/qsort.c > /tmp/qsort.c && curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/ip2net/qsort.h > /tmp/qsort.h && cd /tmp/ && make && sudo mv -v ip2net /usr/local/bin/ && chmod -c 755 /usr/local/bin/ip2net && rm -vf /tmp/Makefile* /tmp/ip2net.c* /tmp/qsort.c* /tmp/qsort.h*
+       whereis mdig-bolvan && whereis ip2net
+
+    - shell: bash
+      env:
+        TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        NAME_ACCOUNT_GITHUB: you-oops-dev
+      run: |
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/cidr.txt > /tmp/cidr.txt
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/russia-blacklist.txt > /tmp/russia-blacklist.txt
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/unblock_suite.txt > /tmp/unblock_suite.txt
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -H "Authorization: token ${TOKEN}" -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/resolving-private/main/list_addr.sh > /tmp/list_addr.sh
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+          python-version: '3.11'
+
+    - name: Cache pip
+      uses: actions/cache@v4
+      with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            ${{ runner.os }}-
+
+    - name: Install dependencies
+      run: |
+          pip install -r requirements.txt
+
+    - name: Pre-start and start bash script
+      env:
+        SERVERIP1: ${{ secrets.SERVERIP1 }}
+        SERVERIP2: ${{ secrets.SERVERIP2 }}
+        MYIP: ${{ secrets.MYIP }}
+        Mat1RX: ${{ secrets.Mat1RX }}
+        TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        MODE: ${{ secrets.MODE }}
+        LANG: en_US.UTF-8
+        CHARSET: UTF-8
+        NAME_ACCOUNT_GITHUB: you-oops-dev
+      run: |
+        chmod -c 755 /tmp/list_addr.sh && /tmp/list_addr.sh && mv -vf /tmp/unblock_suite_ip.txt /tmp/unblock_suite_ip_ipset.txt /tmp/unblock_suite_with_ip_hoster_border_ipset.txt ./
+
+    - name: Create ACL-lists
+      env:
+        LANG: en_US.UTF-8
+        CHARSET: UTF-8
+        NAME_ACCOUNT_GITHUB: you-oops-dev
+      run: |
+        echo ""
+        echo -e "[bypass_all]\n[proxy_list]" | tee ss-gfw-list.acl && \
+        cp -fv ./unblock_suite_ip_ipset.txt ./unblock_suite_ip_ipset.edit
+        dos2unix ./unblock_suite_ip_ipset.edit &>/dev/null && \
+        sed -i 's/\/32//g' ./unblock_suite_ip_ipset.edit && sed -i 's/ //g' ./unblock_suite_ip_ipset.edit && \
+        curl --max-time 90 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges-shadowsocks/main/spotify/ipv4.acl | tee /tmp/spotify_acl.edit &>/dev/null && \
+        sed -i '1,2d' /tmp/spotify_acl.edit
+        cat /tmp/spotify_acl.edit >> ss-gfw-list.acl && \
+        curl --max-time 90 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges-shadowsocks/main/youtube/ipv4.acl | tee /tmp/youtube_acl.edit &>/dev/null && \
+        sed -i '1,2d' /tmp/youtube_acl.edit
+        cat /tmp/youtube_acl.edit >> ss-gfw-list.acl && \
+        #Add my domain
+        echo -e "tmdb.org\nthemoviedb.org" | sed 's/\./\\./g' > /tmp/temp_file && for domain in $(cat /tmp/temp_file); do echo \(\?\:\^\|\\\.\)${domain}$ >> ./ss-gfw-list.acl; done
+        cat ./unblock_suite_ip_ipset.edit >> ./ss-gfw-list.acl && \
+        dos2unix ./ss-gfw-list.acl &>/dev/null && \
+        rm -f ./unblock_suite_ip_ipset.edit && \
+        echo -e "\e[1;33mCreate telegram acl list for SS...\033[0m"
+        echo -e "[bypass_all]\n[proxy_list]" | tee /tmp/ss-gfw-tg.acl && \
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges/main/telegram/ipv4_merged.txt | tee /tmp/telegram.edit &>/dev/null && \
+        dos2unix /tmp/telegram.edit &>/dev/null && \
+        sed -i 's/\/32//g' /tmp/telegram.edit && sed -i 's/ //g' /tmp/telegram.edit && \
+        cat /tmp/telegram.edit >> /tmp/ss-gfw-tg.acl && \
+        dos2unix /tmp/ss-gfw-tg.acl &>/dev/null && \
+        sed -i 's/ //g' /tmp/ss-gfw-tg.acl && cp -f /tmp/ss-gfw-tg.acl ./ && rm -f /tmp/telegram.edit;
+        echo -e "\e[1;33mCreate netflix acl list for SS...\033[0m"
+        echo -e "[bypass_all]\n[proxy_list]" | tee /tmp/ss-gfw-netflix.acl && \
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges/main/netflix/ipv4_merged.txt | tee /tmp/netflix.edit &>/dev/null && \
+        dos2unix /tmp/netflix.edit &>/dev/null && \
+        sed -i 's/\/32//g' /tmp/netflix.edit && sed -i 's/ //g' /tmp/netflix.edit && \
+        cat /tmp/netflix.edit >> /tmp/ss-gfw-netflix.acl && \
+        dos2unix /tmp/ss-gfw-netflix.acl &>/dev/null && \
+        sed -i 's/ //g' /tmp/ss-gfw-netflix.acl && cp -f /tmp/ss-gfw-netflix.acl ./ && rm -f /tmp/netflix.edit;
+        echo -e "\e[1;33mCreate Spotify acl list for SS...\033[0m"
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges-shadowsocks/main/spotify/ipv4.acl | tee /tmp/spotify.edit &>/dev/null && \
+        dos2unix /tmp/spotify.edit &>/dev/null && \
+        mv -f /tmp/spotify.edit ./ss-gfw-spotify.acl;
+
+    - name: Commit files
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOGIN: ${{ secrets.LOGIN }}
+          PASSWORD: ${{ secrets.PASS }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+      run: |
+          set -euo pipefail
+
+          git remote add github "https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git pull github ${GITHUB_REF} --ff-only
+
+          # Get name & email from last commit
+          #git config --local user.email "$(git log --format='%ae' --reverse | tail -1)"
+          #git config --local user.name "$(git log --format='%an' --reverse | tail -1)"
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+
+          # try commit
+          dos2unix unblock_suite_ip.txt unblock_suite_ip_ipset.txt unblock_suite_with_ip_hoster_border_ipset.txt
+          git add unblock_suite_ip.txt unblock_suite_ip_ipset.txt unblock_suite_with_ip_hoster_border_ipset.txt
+          if [ -z "$(git status --porcelain)" ]; then
+            echo 'No changes from GitHub public repository'
+            echo 'Try getting list from my server'
+            wget --user=${LOGIN} --password=${PASSWORD} --no-check-certificate -4 -t 3 https://${DOMAIN}.dns.army/router/unblock_suite_ip.txt -O - > ./unblock_suite_ip.txt;
+            wget --user=${LOGIN} --password=${PASSWORD} --no-check-certificate -4 -t 3 https://${DOMAIN}.dns.army/router/unblock_suite_ip_ipset.txt -O - > ./unblock_suite_ip_ipset.txt;
+            dos2unix unblock_suite_ip.txt unblock_suite_ip_ipset.txt unblock_suite_with_ip_hoster_border_ipset.txt
+            git add unblock_suite_ip.txt unblock_suite_ip_ipset.txt unblock_suite_with_ip_hoster_border_ipset.txt
+            if [ -z "$(git status --porcelain)" ]; then
+            echo 'No changes from on my server in list'
+            exit 0
+            else
+            git commit -m "Auto-update get from my server"
+            git push github HEAD:${GITHUB_REF}
+            exit 0
+            fi
+          fi
+          git commit -m "Auto-update list by Git Action"
+          git add ./README.md
+          git commit -m "Auto count IPs in README.md"
+
+          # push changes
+          git push github HEAD:${GITHUB_REF}
+
+    - name: Commit ACL files for Shadowsocks
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "Auto-update ss-gfw-list's"
+        file_pattern: '*.acl'
+        commit_options: "--no-verify"
+        repository: .
+        commit_user_name: github-actions[bot]
+        commit_user_email: github-actions[bot]@users.noreply.github.com
+        commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+
+    - name: Prepare artifacts
+      run: echo "BUILD_TIMESTAMP=$(date '+%d.%m.%Y_%H-%M-%S')" >> $GITHUB_ENV
+
+    - name: Upload artifacts address lists merging
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: lists_address-merge-${{ env.BUILD_TIMESTAMP }}
+        retention-days: 3
+        path: |
+          unblock_suite_ip_ipset.txt
+          unblock_suite_ip.txt
+          ss-gfw-list.acl
+          ss-gfw-tg.acl
+          ss-gfw-netflix.acl
+          ss-gfw-spotify.acl
+
+    - name: Upload artifacts domain list
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: list_domain-${{ env.BUILD_TIMESTAMP }}
+        retention-days: 3
+        path: /tmp/russia-blacklist.txt
+
+    - name: Upload artifacts address list no merging
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: list_address-no-merge-${{ env.BUILD_TIMESTAMP }}
+        retention-days: 3
+        path: /tmp/unblock_suite_ip_no_merge.txt

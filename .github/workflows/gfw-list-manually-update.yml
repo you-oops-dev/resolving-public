@@ -1,0 +1,74 @@
+name: Manually update GFW-list for shadowsocks
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Update_GFW_list:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install base package
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+       sudo apt update
+       sudo apt install -y bind9-dnsutils git wget gawk curl bash moreutils coreutils util-linux dos2unix sudo language-pack-ru language-pack-en locales --no-install-suggests
+       sudo sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+       sudo sed -i -e 's/# ru_RU.UTF-8 UTF-8/ru_RU.UTF-8 UTF-8/' /etc/locale.gen
+       sudo locale-gen --no-purge en_US.UTF-8 ru_RU.UTF-8
+
+    - name: Create GFW-lists
+      env:
+        LANG: en_US.UTF-8
+        CHARSET: UTF-8
+        NAME_ACCOUNT_GITHUB: you-oops-dev
+      run: |
+        echo -e "[bypass_all]\n[proxy_list]" | tee ss-gfw-list.acl && \
+        cp -fv ./unblock_suite_ip_ipset.txt ./unblock_suite_ip_ipset.edit
+        dos2unix ./unblock_suite_ip_ipset.edit &>/dev/null && \
+        sed -i 's/\/32//g' ./unblock_suite_ip_ipset.edit && sed -i 's/ //g' ./unblock_suite_ip_ipset.edit && \
+        curl --max-time 90 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges-shadowsocks/main/spotify/ipv4.acl | tee /tmp/spotify_acl.edit &>/dev/null && \
+        sed -i '1,2d' /tmp/spotify_acl.edit
+        cat /tmp/spotify_acl.edit >> ss-gfw-list.acl && \
+        curl --max-time 90 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges-shadowsocks/main/youtube/ipv4.acl | tee /tmp/youtube_acl.edit &>/dev/null && \
+        sed -i '1,2d' /tmp/youtube_acl.edit
+        cat /tmp/youtube_acl.edit >> ss-gfw-list.acl && \
+        #Add my domain
+        echo -e "tmdb.org\nthemoviedb.org" | sed 's/\./\\./g' > /tmp/temp_file && for domain in $(cat /tmp/temp_file); do echo \(\?\:\^\|\\\.\)${domain}$ >> ./ss-gfw-list.acl; done && \
+        cat ./unblock_suite_ip_ipset.edit >> ./ss-gfw-list.acl && \
+        dos2unix ./ss-gfw-list.acl &>/dev/null && \
+        rm -f ./unblock_suite_ip_ipset.edit && \
+        echo -e "\e[1;33mCreate telegram acl list for SS...\033[0m"
+        echo -e "[bypass_all]\n[proxy_list]" | tee /tmp/ss-gfw-tg.acl && \
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges/main/telegram/ipv4_merged.txt | tee /tmp/telegram.edit &>/dev/null && \
+        dos2unix /tmp/telegram.edit &>/dev/null && \
+        sed -i 's/\/32//g' /tmp/telegram.edit && sed -i 's/ //g' /tmp/telegram.edit && \
+        cat /tmp/telegram.edit >> /tmp/ss-gfw-tg.acl && \
+        dos2unix /tmp/ss-gfw-tg.acl &>/dev/null && \
+        sed -i 's/ //g' /tmp/ss-gfw-tg.acl && cp -f /tmp/ss-gfw-tg.acl ./ && rm -f /tmp/telegram.edit;
+        echo -e "\e[1;33mCreate netflix acl list for SS...\033[0m"
+        echo -e "[bypass_all]\n[proxy_list]" | tee /tmp/ss-gfw-netflix.acl && \
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges/main/netflix/ipv4_merged.txt | tee /tmp/netflix.edit &>/dev/null && \
+        dos2unix /tmp/netflix.edit &>/dev/null && \
+        sed -i 's/\/32//g' /tmp/netflix.edit && sed -i 's/ //g' /tmp/netflix.edit && \
+        cat /tmp/netflix.edit >> /tmp/ss-gfw-netflix.acl && \
+        dos2unix /tmp/ss-gfw-netflix.acl &>/dev/null && \
+        sed -i 's/ //g' /tmp/ss-gfw-netflix.acl && cp -f /tmp/ss-gfw-netflix.acl ./ && rm -f /tmp/netflix.edit;
+        echo -e "\e[1;33mCreate Spotify acl list for SS...\033[0m"
+        curl --max-time 30 --retry-delay 3 --retry 10 -4 -# https://raw.githubusercontent.com/${NAME_ACCOUNT_GITHUB}/ipranges-shadowsocks/main/spotify/ipv4.acl | tee /tmp/spotify.edit &>/dev/null && \
+        dos2unix /tmp/spotify.edit &>/dev/null && \
+        mv -f /tmp/spotify.edit ./ss-gfw-spotify.acl;
+
+
+    - name: Commit ACL files for Shadowsocks
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "Manually update ss-gfw-list's GitHub Action"
+        file_pattern: '*.acl'
+        commit_options: "--no-verify"
+        repository: .
+        commit_user_name: you-oops-dev IA
+        commit_user_email: you-oops-dev@users.noreply.github.com
+        commit_author: you-oops-dev IA <you-oops-dev@users.noreply.github.com>
