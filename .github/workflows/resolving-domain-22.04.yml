@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron:  '0 */3 * * *'
+    - cron:  '0 */6 * * *'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -19,13 +19,13 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
 
-    - name: Maximize disk space
-      uses: easimon/maximize-build-space@master
-      with:
-          root-reserve-mb: 5120
-          remove-dotnet: true
-          remove-android: true
-          remove-docker-images: true
+#    - name: Maximize disk space
+#      uses: easimon/maximize-build-space@master
+#      with:
+#          root-reserve-mb: 5120
+#          remove-dotnet: true
+#          remove-android: true
+#          remove-docker-images: true
 
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v4
