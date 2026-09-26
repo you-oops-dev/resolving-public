@@ -37,7 +37,6 @@
 (?:^|\.)sponsorblock\.hankmccord\.dev$
 (?:^|\.)video\.google\.com\.ar$
 (?:^|\.)video\.google\.com\.au$
-(?:^|\.)youtube-nocookie\.com$
 (?:^|\.)youtube\.com$
 (?:^|\.)youtubekids\.com$
 (?:^|\.)youtube-nocookie\.com$
@@ -7234,7 +7233,9 @@
 188.0.185.15
 188.113.227.147
 188.113.227.226
+188.114.96.0
 188.114.96.1
+188.114.97.0
 188.114.97.1
 188.119.51.141
 188.119.51.142
